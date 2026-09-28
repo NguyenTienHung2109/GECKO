@@ -1,0 +1,19 @@
+schema: uefa-method-config
+version: 2
+name: fedgta_uefa_v1
+strategy:
+  name: fedgta
+  parameters:
+    propagation_steps: 5
+    propagation_alpha: 0.5
+    temperature: 20.0
+    moment_order: 13
+    similarity_threshold: 0.65
+continual_method:
+  name: TWP
+  parameters:
+    lambda_l: 10000.0
+    lambda_t: 10000.0
+    beta: 0.01
+    middle_layer_index: null
+    significant_threshold: 1.0e-12

@@ -1,0 +1,36 @@
+schema: uefa-method-config
+version: 2
+name: fedfst_uefa_v1
+strategy:
+  name: fedfst
+  parameters:
+    # Resolution profile from the paper-linked executable snapshot, not
+    # defaults stated in the paper. Every under-specified choice is hashed.
+    noise_dim: 128
+    generator_dropout: 0.5
+    generator_rounds: 2
+    generator_epochs: 200
+    generator_learning_rate: 0.005
+    client_learning_rate: 0.01
+    client_weight_decay: 0.0
+    client_nodes_per_class: 200
+    server_nodes_per_class: 300
+    generated_edges_per_node: 2
+    class_il_output_training_policy: paper_full
+    server_initial_edge_policy: target_scaled_capped
+    server_max_edges_per_node: 14
+    edge_reduction_ratio: 0.05
+    topology_tolerance: 0.05
+    topology_max_iterations: 60
+    sampled_feature_fraction: 0.2
+    lambda_kl: 100.0
+    smoothing_hops: 2
+    lambda_low: 1.0
+    distillation_epochs: 200
+    distillation_early_stop_policy: none
+    distillation_validation_checkpoints: [0, 1, 2, 5, 10, 20, 50, 75, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
+    distillation_learning_rate: 0.002
+    method_seed: 24
+continual_method:
+  name: Bare
+  parameters: {}

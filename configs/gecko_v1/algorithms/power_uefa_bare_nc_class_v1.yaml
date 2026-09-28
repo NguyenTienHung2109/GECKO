@@ -1,0 +1,17 @@
+schema: uefa-method-config
+version: 2
+name: power_uefa_v1
+strategy:
+  name: power_uefa
+  parameters:
+    ablation_mode: full
+    alpha: 0.5
+    beta: 0.01
+    trajectory_decay: 0.1
+    coverage_threshold: 0.1
+    replay_ceiling_bytes: 16777216
+    reconstruction_steps: 300
+    server_epochs: 3
+continual_method:
+  name: Bare
+  parameters: {}

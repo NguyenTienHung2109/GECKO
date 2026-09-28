@@ -1,0 +1,13 @@
+schema: uefa-method-config
+version: 2
+name: gem_uefa_v1
+strategy:
+  name: scaffold
+  parameters: {}
+continual_method:
+  name: GEM
+  parameters:
+    memory_size: 100
+    margin: 0.5
+    projection_epsilon: 0.001
+    violation_tolerance: 1.0e-10

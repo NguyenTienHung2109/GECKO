@@ -1,0 +1,14 @@
+schema: uefa-method-config
+version: 2
+name: ssm_uefa_v1
+strategy:
+  name: local_only
+  parameters: {}
+continual_method:
+  name: SSM
+  parameters:
+    sampler_mode: degree
+    hop_budgets: [0, 0]
+    replay_weight: 1.0
+    replay_ceiling_bytes: 16777216
+    stage_count: 8

@@ -1,0 +1,15 @@
+schema: uefa-method-config
+version: 2
+name: fedgta_uefa_v1
+strategy:
+  name: fedgta
+  parameters:
+    propagation_steps: 5
+    propagation_alpha: 0.5
+    temperature: 20.0
+    moment_order: 6
+    moment_type: hybrid
+    similarity_threshold: 0.5
+continual_method:
+  name: Bare
+  parameters: {}

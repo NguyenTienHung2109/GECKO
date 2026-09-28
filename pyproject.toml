@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gecko"
+version = "0.4.0"
+description = "Federated continual graph-learning benchmark"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+dependencies = [
+    "torch>=2.1,<3",
+    "numpy>=1.26,<3",
+    "scipy>=1.11,<2",
+    "networkx>=3,<4",
+    "PyYAML>=6,<7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<9"]
+graph = [
+    "dgl==1.1.3",
+    "ogb==1.3.6",
+    "dgllife==0.3.2",
+    "pandas==2.3.3",
+    "scikit-learn==1.7.2",
+    "rdkit==2025.3.5",
+    "pymetis==2023.1.1",
+]
+legacy = ["torch-scatter>=2.1.2"]
+pyg = ["torch-geometric==2.8.0"]
+legacy-gem = ["qpth==0.0.18"]
+tracking = ["wandb>=0.16"]
+
+[project.scripts]
+gecko = "gecko.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["gecko", "gecko.*"]
+
+[tool.setuptools]
+license-files = ["LICENSE.md", "NOTICE"]
+
+[tool.setuptools.package-data]
+"gecko.compat" = ["source_paths.json"]

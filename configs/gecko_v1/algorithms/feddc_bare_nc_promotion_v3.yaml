@@ -1,0 +1,11 @@
+schema: uefa-method-config
+version: 2
+name: feddc_uefa_v1
+strategy:
+  name: feddc
+  parameters:
+    alpha: 0.1
+    drift_enabled: true
+continual_method:
+  name: Bare
+  parameters: {}

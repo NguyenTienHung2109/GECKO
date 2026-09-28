@@ -1,0 +1,22 @@
+schema: uefa-method-config
+version: 2
+name: motion_uefa_v1
+strategy:
+  name: motion
+  parameters:
+    buffer_size: 200
+    expert_select: 3
+    k_list: [0.2, 0.4, 0.6, 0.8]
+    node_reduction_rate: 0.25
+    pcb_max_ratio: 0.0001
+    pcb_min_ratio: 0.0001
+    pcb_ratio: 0.1
+    replay_ceiling_bytes: 16777216
+    replay_weight: 2.0
+    similarity_threshold: 0.5
+    use_node_mahalanobis: true
+    use_node_mmd: true
+    use_node_positional: true
+continual_method:
+  name: Bare
+  parameters: {}

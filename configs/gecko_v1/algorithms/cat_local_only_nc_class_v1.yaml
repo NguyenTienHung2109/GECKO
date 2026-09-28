@@ -1,0 +1,18 @@
+schema: uefa-method-config
+version: 2
+name: cat_uefa_v1
+strategy:
+  name: local_only
+  parameters: {}
+continual_method:
+  name: CaT
+  parameters:
+    # Official code uses randomChoice initialization and feat_lr=1e-3.
+    feature_initialization: random_choice
+    condensation_lr: 0.001
+    # UEFA sanity default; the official full runs use 3000 random encoders.
+    condensation_steps: 32
+    # Balanced benchmark adaptation: equal synthetic capacity per local class.
+    synthetic_nodes_per_class: 2
+    memory_ceiling_bytes: 16777216
+    stage_count: 8

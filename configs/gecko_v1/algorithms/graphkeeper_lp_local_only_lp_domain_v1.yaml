@@ -1,0 +1,25 @@
+schema: uefa-method-config
+version: 2
+name: graphkeeper_uefa_v1
+strategy:
+  name: local_only
+  parameters: {}
+continual_method:
+  name: GraphKeeper-LP
+  parameters:
+    rank: 16
+    intra_weight: 1.0
+    inter_weight: 0.1
+    temperature: 0.2
+    feature_drop: 0.3
+    edge_drop: 0.2
+    adapter_learning_rate: 0.01
+    router_projection_dim: 2048
+    ridge_lambda: 0.1
+    dbscan_eps: 0.1
+    dbscan_min_samples: 5
+    max_cluster_nodes: 2048
+    max_prototypes_per_domain: 64
+    pretrain_weight: 1.0
+    pretrain_edges: 4096
+    stage_count: 2

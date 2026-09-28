@@ -1,0 +1,17 @@
+GECKO federated continual graph-learning benchmark
+Copyright 2026 respective UEFA contributors
+
+This distribution modifies and extends BeGin 0.4.0, originally distributed
+under the Apache License, Version 2.0:
+https://github.com/ShinhwanKang/BeGin
+
+BeGin attribution refers to upstream third-party software. The GECKO
+distribution reorganizes that implementation and adds federated stream
+construction, continual/federated methods, execution, and evaluation.
+See LICENSE.md for the Apache License, Version 2.0.
+
+Dataset names, downloaded datasets, split metadata, processed caches, and
+derived graph streams remain subject to their upstream terms. They are not
+relicensed by the code license. This archive contains no dataset payloads,
+pretrained weights, generated streams, or tracking directories. Dataset
+sources and reproduction limitations are described in docs/reproducibility.md.

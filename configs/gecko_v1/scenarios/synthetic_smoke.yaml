@@ -1,0 +1,36 @@
+benchmark_name: UEFA
+benchmark_schema_version: 2
+seed: 0
+benchmark_seeds: [0, 1, 2, 3, 4]
+output_root: generated_streams
+scenario:
+  dataset: synthetic
+  problem: NC
+  incremental_setting: task
+  num_tasks: 2
+  metrics: [accuracy]
+  synthetic: true
+  split_protocol: synthetic
+  feature_provenance: provided_node_attributes
+partition:
+  num_clients: 2
+  spatial_profile: mild
+  micro_partition_multiplier: 10
+  client_size_tolerance: 0.50
+  minimum_train_queries_per_client_task: 1
+  minimum_validation_queries_per_client_task: 1
+  minimum_test_queries_per_client_task: 1
+  maximum_assignment_iterations: 500
+  allow_infeasible: false
+order: {profile: mild}
+training:
+  participation_fraction: 1.0
+  rounds_per_stage: 1
+  local_epochs_per_round: 1
+  learning_rate: 0.01
+  optimizer_state_across_rounds: reset
+  aggregation_weight: current_supervised_query_count
+  fedprox_mu: 0.01
+  hidden_size: 8
+  num_layers: 2
+wandb: {mode: disabled, project: UEFA}

@@ -1,0 +1,11 @@
+schema: uefa-method-config
+version: 2
+name: scaffold_uefa_adam_v1
+strategy:
+  name: scaffold
+  parameters:
+    control_updates_enabled: true
+    correction_enabled: true
+continual_method:
+  name: Bare
+  parameters: {}

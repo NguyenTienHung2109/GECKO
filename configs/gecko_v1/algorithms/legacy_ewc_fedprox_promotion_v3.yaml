@@ -1,0 +1,9 @@
+schema: uefa-method-config
+version: 2
+name: legacy_adapter_v1
+strategy:
+  name: fedprox
+  parameters: {}
+continual_method:
+  name: EWC
+  parameters: {}

@@ -1,0 +1,9 @@
+schema: uefa-method-config
+version: 2
+name: legacy_adapter_v1
+strategy:
+  name: local_only
+  parameters: {}
+continual_method:
+  name: MAS
+  parameters: {}

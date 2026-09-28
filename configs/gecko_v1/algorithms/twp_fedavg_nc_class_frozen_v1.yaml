@@ -1,0 +1,14 @@
+schema: uefa-method-config
+version: 2
+name: twp_uefa_v1
+strategy:
+  name: fedavg
+  parameters: {}
+continual_method:
+  name: TWP
+  parameters:
+    lambda_l: 10000.0
+    lambda_t: 10000.0
+    beta: 0.1
+    middle_layer_index: null
+    significant_threshold: 1.0e-12

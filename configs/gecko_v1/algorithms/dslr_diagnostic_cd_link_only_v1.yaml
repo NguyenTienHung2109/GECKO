@@ -1,0 +1,24 @@
+schema: uefa-method-config
+version: 2
+name: dslr_diagnostic_v1
+strategy:
+  name: local_only
+  parameters: {}
+continual_method:
+  name: DSLRDiagnostic
+  parameters:
+    beta: 0.05
+    radius: 0.15
+    structure_lambda: 0.5
+    top_n: 5
+    candidate_k: 50
+    tau: 0.8
+    structure_epochs: 99
+    structure_learning_rate: 0.01
+    structure_hidden_dim: 64
+    structure_heads: 4
+    replay_fraction: 0.05
+    replay_ceiling_bytes: 16777216
+    undirected: true
+    selection_mode: coverage_diversity
+    structure_mode: link_only

@@ -1,0 +1,17 @@
+schema: uefa-method-config
+version: 2
+name: cat_uefa_v1
+strategy:
+  name: local_only
+  parameters: {}
+continual_method:
+  name: CaT
+  parameters:
+    feature_initialization: random_choice
+    condensation_lr: 0.001
+    condensation_steps: 32
+    # For LC this is interpreted as synthetic directed query edges/class;
+    # every edge owns two synthetic endpoint nodes.
+    synthetic_nodes_per_class: 2
+    memory_ceiling_bytes: 16777216
+    stage_count: 8

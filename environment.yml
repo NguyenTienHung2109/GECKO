@@ -1,0 +1,20 @@
+name: gecko
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.10.20
+  - pip=25.1.1
+  - setuptools=80.9.0
+  - wheel=0.45.1
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cpu
+      - torch==2.7.1+cpu
+      - numpy==1.26.4
+      - scipy==1.15.3
+      - networkx==3.4.2
+      - PyYAML==6.0.2
+      - pytest==8.4.1
+variables:
+  PYTHONNOUSERSITE: "1"
+  WANDB_MODE: "disabled"

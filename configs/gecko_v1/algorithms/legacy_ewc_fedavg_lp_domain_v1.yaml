@@ -1,0 +1,10 @@
+schema: uefa-method-config
+version: 2
+name: legacy_adapter_v1
+strategy:
+  name: fedavg
+  parameters: {}
+continual_method:
+  name: EWC
+  parameters:
+    regularization: 1.0

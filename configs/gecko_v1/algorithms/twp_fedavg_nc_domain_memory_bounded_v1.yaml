@@ -1,0 +1,18 @@
+schema: uefa-method-config
+version: 2
+name: twp_uefa_v1
+strategy:
+  name: fedavg
+  parameters: {}
+continual_method:
+  name: TWP
+  parameters:
+    lambda_l: 10000.0
+    lambda_t: 10000.0
+    beta: 0.01
+    middle_layer_index: null
+    significant_threshold: 1.0e-12
+    # The large OGBN-Proteins client graphs make the full Eq.-(10) beta term
+    # exceed 16 GiB while materializing its arc-by-hidden temporary.  This
+    # deterministic local budget is recorded in the result provenance.
+    topology_max_edges: 200000

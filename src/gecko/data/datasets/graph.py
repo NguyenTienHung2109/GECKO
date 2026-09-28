@@ -1,0 +1,614 @@
+from __future__ import annotations
+
+# COMMON
+from typing import Callable
+from typing import Optional
+import datetime
+import os
+import torch
+import numpy as np
+import networkx as nx
+import torch.nn.functional as F
+import tqdm
+import pickle
+import json
+from itertools import chain
+
+# FOR DGL DATASETS
+import dgl
+from dgl.data.utils import save_graphs
+from dgl.data.utils import load_graphs
+from dgl.data.utils import save_info
+from dgl.data.utils import load_info
+from dgl.data.utils import makedirs
+from dgl.data.utils import _get_dgl_url
+from dgl.data.utils import download
+from dgl.data.utils import extract_archive
+from ogb.graphproppred import DglGraphPropPredDataset
+
+# for aromaticity dataset
+from dgllife.data import PubChemBioAssayAromaticity
+from dgllife.data.csv_dataset import MoleculeCSVDataset
+from dgllife.utils.mol_to_graph import smiles_to_bigraph
+import pandas as pd
+
+
+
+import os
+import pickle
+from dgl.data.utils import download
+
+
+def load_graph_dataset(dataset_name, dataset_load_func, incr_type, save_path):
+    domain_info, time_info = None, None
+    if dataset_load_func is not None:
+        custom_dataset = dataset_load_func(save_path=save_path)
+        dataset = custom_dataset['graphs']
+        num_feats = custom_dataset['num_feats']
+        num_classes = custom_dataset['num_classes']
+        domain_info = custom_dataset.get('domain_info', None)
+        time_info = custom_dataset.get('time_info', None)
+    if dataset_name in ['mnist', 'cifar10'] and incr_type in ['task', 'class']:
+        dataset = DGLGNNBenchmarkDataset(dataset_name, raw_dir=save_path)
+        num_feats, num_classes = dataset.num_feats, dataset.num_classes
+    elif dataset_name in ['aromaticity'] and incr_type in ['task', 'class']:
+        dataset = AromaticityDataset(raw_dir=save_path)
+        num_feats, num_classes = 2, 30
+        # load train/val/test split (6:2:2 random split)
+        pkl_path = os.path.join(save_path, f'{dataset_name}_metadata_allIL.pkl')
+        download(f'https://github.com/ShinhwanKang/BeGin/raw/main/metadata/{dataset_name}_metadata_allIL.pkl', pkl_path)
+        metadata = pickle.load(open(pkl_path, 'rb'))
+        inner_tvt_splits = metadata['inner_tvt_splits']
+        dataset._train_masks = (inner_tvt_splits % 10) < 6
+        dataset._val_masks = ((inner_tvt_splits % 10) == 6) | ((inner_tvt_splits % 10) == 7) 
+        dataset._test_masks = (inner_tvt_splits % 10) > 7
+        
+    elif dataset_name in ['ogbg-molhiv'] and incr_type in ['domain']:
+        dataset = DglGraphPropPredDataset('ogbg-molhiv', root=save_path)
+        num_feats, num_classes = dataset[0][0].ndata['feat'].shape[-1], 1
+        
+        """ (For Task/Class-IL)
+        # load train/val/test split
+        split_idx = dataset.get_idx_split()
+        for _split, _split_name in [('train', '_train'), ('valid', '_val'), ('test', '_test')]:
+            _indices = torch.zeros(len(dataset), dtype=torch.bool)
+            _indices[split_idx[_split]] = True
+            setattr(dataset, _split_name + '_mask', _indices)
+        """
+        # load train/val/test split and domain_info
+        pkl_path = os.path.join(save_path, f'molhivx_metadata_domainIL.pkl')
+        download(f'https://github.com/ShinhwanKang/BeGin/raw/main/metadata/molhivx_metadata_domainIL.pkl', pkl_path)
+        metadata = pickle.load(open(pkl_path, 'rb'))
+        inner_tvt_splits = metadata['inner_tvt_splits']
+        # set train/val/test split (random split, 8:1:1)
+        dataset._train_masks = (inner_tvt_splits % 10) < 8
+        dataset._val_masks = (inner_tvt_splits % 10) == 8
+        dataset._test_masks = (inner_tvt_splits % 10) > 8
+        domain_info = metadata['domain_splits']
+        
+    elif dataset_name in ['nyctaxi'] and incr_type in ['time']:
+        dataset = NYCTaxiDataset(dataset_name, raw_dir=save_path)
+        num_feats, num_classes = dataset[0][0].ndata['feat'].shape[-1], 2
+        
+        # load time split information and train/val/test splits (random split, 6:2:2)
+        pkl_path = os.path.join(save_path, f'nyctaxi_metadata_timeIL.pkl')
+        download(f'https://github.com/ShinhwanKang/BeGin/raw/main/metadata/nyctaxi_metadata_timeIL.pkl', pkl_path)
+        metadata = pickle.load(open(pkl_path, 'rb'))
+        inner_tvt_splits = metadata['inner_tvt_splits']
+        dataset._train_masks = (inner_tvt_splits % 10) < 6
+        dataset._val_masks = ((inner_tvt_splits % 10) == 6) | ((inner_tvt_splits % 10) == 7) 
+        dataset._test_masks = (inner_tvt_splits % 10) > 7    
+        time_info = metadata['time_splits']
+    elif dataset_name in ['ogbg-ppa'] and incr_type in ['domain']:
+        dataset = OgbgPpaSampledDataset(save_path)
+        num_feats, num_classes = 2, 37
+        pkl_path = os.path.join(save_path, f'ogbg-ppa_metadata_domainIL.pkl')
+        download(f'https://github.com/ShinhwanKang/BeGin/raw/main/metadata/ogbg-ppa_metadata_domainIL.pkl', path=pkl_path)
+        metadata = pickle.load(open(pkl_path, 'rb'))
+        inner_tvt_splits = metadata['inner_tvt_split']
+        # set train/val/test split (random split, 8:1:1)
+        dataset._train_masks = (inner_tvt_splits % 10) < 8
+        dataset._val_masks = (inner_tvt_splits % 10) == 8
+        dataset._test_masks = (inner_tvt_splits % 10) > 8
+        domain_info = metadata['domain_info']
+    elif dataset_name in ['sentiment'] and incr_type in ['time']:
+        dataset = SentimentGraphDataset(dataset_name='sentiment', raw_dir=save_path)
+        num_feats, num_classes = dataset._num_feats, dataset._num_classes
+        time_info = dataset._time_info
+        delattr(dataset, "_time_info")
+    elif dataset_name in ['zinc'] and incr_type in ['domain']:
+        dataset = ZINCGraphDataset(dataset_name='zinc', raw_dir=save_path)
+        num_feats, num_classes = dataset[0][0].ndata['feat'].shape[-1], 1
+        domain_info = dataset.metadata
+    elif dataset_name in ['aqsol'] and incr_type in ['domain']:
+        dataset = AQSOLGraphDataset(dataset_name='aqsol', raw_dir=save_path)
+        num_feats, num_classes = dataset[0][0].ndata['feat'].shape[-1], 1
+        domain_info = dataset.metadata
+    else:
+        raise NotImplementedError("Tried to load unsupported scenario.")
+    
+    print("=====CHECK=====")
+    print("num_classes:", num_classes, ", num_feats:", num_feats)
+    print("dataset._train_mask:", dataset._train_masks.shape)
+    print("dataset._val_mask:", dataset._val_masks.shape)
+    print("dataset._test_mask:", dataset._test_masks.shape)
+    print("dataset.labels:", dataset.labels.shape)
+    if incr_type == 'time':
+        print("time_info:", time_info is not None)
+    if incr_type == 'domain':
+        print("domain_info:", domain_info is not None)
+    print("===============")
+    
+    return num_classes, num_feats, dataset, domain_info, time_info
+
+
+
+
+class DGLGNNBenchmarkDataset(dgl.data.DGLBuiltinDataset):
+    root_url = 'https://data.pyg.org/datasets/benchmarking-gnns'
+    _urls = {
+        'mnist': f'{root_url}/MNIST_v2.zip',
+        'cifar10': f'{root_url}/CIFAR10_v2.zip',
+    }
+    
+    def __init__(self, name, raw_dir=None, force_reload=False, verbose=True, transform=None):
+        assert name.lower() in ['mnist', 'cifar10']
+        url = self._urls[name]
+        super(DGLGNNBenchmarkDataset, self).__init__(name, url=url, raw_dir=raw_dir, force_reload=force_reload, verbose=verbose)
+        
+    def convert_pyg_dict_to_dgl(self, graph_info):
+        g = dgl.graph((graph_info['edge_index'][0], graph_info['edge_index'][1]), num_nodes=graph_info['x'].shape[0])
+        g.ndata['feat'] = torch.cat((graph_info['x'], graph_info['pos']), dim=-1)
+        g.edata['edge_attr'] = graph_info['edge_attr']
+        return dgl.add_self_loop(g)
+        
+    def process(self):
+        root = self.raw_path
+        data = torch.load(os.path.join(root, f"{self.name.upper()}_v2.pt"))
+        # target_idx = self.target_split_to_idx[self.target_split]
+        train_graphs, train_ys = zip(*[(self.convert_pyg_dict_to_dgl(graph_info), graph_info['y']) for graph_info in tqdm.tqdm(data[0])])
+        val_graphs, val_ys = zip(*[(self.convert_pyg_dict_to_dgl(graph_info), graph_info['y']) for graph_info in tqdm.tqdm(data[1])])
+        test_graphs, test_ys = zip(*[(self.convert_pyg_dict_to_dgl(graph_info), graph_info['y']) for graph_info in tqdm.tqdm(data[2])])
+        
+        self._graphs = list(chain(train_graphs, val_graphs, test_graphs))
+        train_ys, val_ys, test_ys = map(lambda x: torch.LongTensor(x), (train_ys, val_ys, test_ys))
+        self.labels = torch.cat((train_ys, val_ys, test_ys), dim=0)
+        self._train_masks = torch.cat((torch.ones_like(train_ys).bool(), torch.zeros_like(val_ys).bool(), torch.zeros_like(test_ys).bool()), dim=0)
+        self._val_masks = torch.cat((torch.zeros_like(train_ys).bool(), torch.ones_like(val_ys).bool(), torch.zeros_like(test_ys).bool()), dim=0)
+        self._test_masks = torch.cat((torch.zeros_like(train_ys).bool(), torch.zeros_like(val_ys).bool(), torch.ones_like(test_ys).bool()), dim=0)
+        self._num_classes = self.labels.max().item() + 1
+        self._num_feats = self._graphs[0].ndata['feat'].shape[-1]
+        
+    def has_cache(self):
+        graph_path = os.path.join(self.save_path,
+                                  self.save_name + '.bin')
+        info_path = os.path.join(self.save_path,
+                                 self.save_name + '.pkl')
+        if os.path.exists(graph_path) and \
+            os.path.exists(info_path):
+            return True
+
+        return False
+
+    def save(self):
+        """save the graph list and the labels"""
+        graph_path = os.path.join(self.save_path,
+                                  self.save_name + '.bin')
+        info_path = os.path.join(self.save_path,
+                                 self.save_name + '.pkl')
+        save_graphs(str(graph_path), self._graphs, {'y': self.labels, 'train_masks': self._train_masks, 'val_masks': self._val_masks, 'test_masks': self._test_masks})
+        save_info(str(info_path), {'num_classes': self._num_classes})
+
+    def load(self):
+        graph_path = os.path.join(self.save_path,
+                                  self.save_name + '.bin')
+        info_path = os.path.join(self.save_path,
+                                 self.save_name + '.pkl')
+        graphs, auxs = load_graphs(str(graph_path))
+        info = load_info(str(info_path))
+        self._num_classes = info['num_classes']
+        
+        self._graphs = graphs
+        self.labels = auxs['y']
+        self._train_masks = auxs['train_masks'].bool()
+        self._val_masks = auxs['val_masks'].bool()
+        self._test_masks = auxs['test_masks'].bool()
+        self._num_feats = self._graphs[0].ndata['feat'].shape[-1]
+        
+        if self.verbose:
+            print('num_graphs:', len(self._graphs), ', num_labels:', self.labels.shape, 'num_classes:', self._num_classes)
+            
+    def __getitem__(self, idx):
+        # print(self._task_specific_masks.shape)
+        if hasattr(self, '_task_specific_masks'):
+            return self._graphs[idx], self.labels[idx], self._task_specific_masks[idx]
+        else:
+            return self._graphs[idx], self.labels[idx]
+        
+    def __len__(self):
+        return len(self._graphs)
+
+    @property
+    def save_name(self):
+        return self.name + '_dgl_graph'
+
+    @property
+    def num_classes(self):
+        return self._num_classes
+    
+    @property
+    def num_feats(self):
+        return self._num_feats
+
+
+class NYCTaxiDataset(dgl.data.DGLBuiltinDataset):
+    root_url = 'https://www.dropbox.com/s/nm6w8ikxpk2x8oj'
+    _urls = {
+        'nyctaxi': f'{root_url}/taxi.zip?dl=1',
+    }
+    
+    def __init__(self, name, raw_dir=None, force_reload=False, verbose=True, transform=None):
+        assert name.lower() in ['nyctaxi']
+        url = self._urls[name]
+        super(NYCTaxiDataset, self).__init__(name, url=url, raw_dir=raw_dir, force_reload=force_reload, verbose=verbose)
+    
+    def process(self):
+        root = self.raw_path
+        days = [None, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+        graphs, labels, times = [], [], []
+        
+        map_to_id = {'"Bronx"': 1, '"Brooklyn"': 2, '"EWR"': 3, '"Manhattan"': 4, '"Queens"': 5, '"Staten Island"': 6, '"Unknown"': 7, '"N/A"': 7}
+        download('https://d37ci6vzurychx.cloudfront.net/misc/taxi+_zone_lookup.csv', path=os.path.join(root, 'lookup.csv'))
+        with open(os.path.join(root, 'lookup.csv'), 'r') as fcsv:
+            fcsv.readline()
+            node_feats = torch.LongTensor([map_to_id[line.split(',')[1]] for line in fcsv])
+            # print(node_feats.min(), node_feats.max(), node_feats.shape)
+            node_feats = node_feats - 1
+            
+        for yy in tqdm.trange(2018, 2021+1):
+            for mm in range(1, 12+1):
+                for _dd in range(days[mm] + (1 if ((mm == 2) and (yy % 4 == 0)) else 0)):
+                    dd = _dd + 1
+                    srcs, dsts, edge_feats = torch.load(os.path.join(root, f"new/{yy}_{mm}_{dd}.pt"))
+                    for ii in range(24):
+                        labels.append(0 if (datetime.date(yy, mm, dd).weekday() < 5) else 1)
+                        valid_idxs = (edge_feats[:, ii] > 0.1) | (srcs == dsts)
+                        g = dgl.graph((srcs[valid_idxs], dsts[valid_idxs]))
+                        g.ndata['feat'] = F.one_hot(node_feats, num_classes=7).float()
+                        g.edata['feat'] = edge_feats[valid_idxs, ii:ii+1].float()
+                        graphs.append(g)
+                    
+        self._graphs = graphs
+        self.labels = torch.LongTensor(labels).unsqueeze(-1)
+        # self._months = torch.LongTensor(times)
+        self._num_classes = 1
+        self._num_feats = self._graphs[0].ndata['feat'].shape[-1]
+        
+    def has_cache(self):
+        graph_path = os.path.join(self.save_path,
+                                  self.save_name + '.bin')
+        info_path = os.path.join(self.save_path,
+                                 self.save_name + '.pkl')
+        if os.path.exists(graph_path) and \
+            os.path.exists(info_path):
+            return True
+
+        return False
+
+    def save(self):
+        """save the graph list and the labels"""
+        graph_path = os.path.join(self.save_path,
+                                  self.save_name + '.bin')
+        info_path = os.path.join(self.save_path,
+                                 self.save_name + '.pkl')
+        save_graphs(str(graph_path), self._graphs, {'y': self.labels}) # , 'mm': self._months
+        save_info(str(info_path), {'num_classes': self._num_classes})
+
+    def load(self):
+        graph_path = os.path.join(self.save_path,
+                                  self.save_name + '.bin')
+        info_path = os.path.join(self.save_path,
+                                 self.save_name + '.pkl')
+        graphs, auxs = load_graphs(str(graph_path))
+        info = load_info(str(info_path))
+        self._num_classes = info['num_classes']
+        
+        self._graphs = graphs
+        self.labels = auxs['y']
+        # self._months = auxs['mm']
+        self._num_feats = self._graphs[0].ndata['feat'].shape[-1]
+        
+        if self.verbose:
+            print('num_graphs:', len(self._graphs), ', num_labels:', self.labels.shape, 'num_classes:', self._num_classes)
+            
+    def __getitem__(self, idx):
+        # print(self._task_specific_masks.shape)
+        if hasattr(self, '_task_specific_masks'):
+            return self._graphs[idx], self.labels[idx], self._task_specific_masks[idx]
+        else:
+            return self._graphs[idx], self.labels[idx]
+        
+    def __len__(self):
+        return len(self._graphs)
+
+    @property
+    def save_name(self):
+        return self.name + '_dgl_graph'
+
+    @property
+    def num_classes(self):
+        return self._num_classes
+    
+    @property
+    def num_feats(self):
+        return self._num_feats
+
+
+class DglGraphPropPredDatasetWithTaskMask(DglGraphPropPredDataset):
+    def __getitem__(self, idx):
+        '''Get datapoint with index'''
+        if hasattr(self, '_task_specific_masks'):
+            if isinstance(idx, int):
+                return self.graphs[idx], self.labels[idx], self._task_specific_masks[idx]
+            elif torch.is_tensor(idx) and idx.dtype == torch.long:
+                if idx.dim() == 0:
+                    return self.graphs[idx], self.labels[idx], self._task_specific_masks[idx]
+                elif idx.dim() == 1:
+                    return Subset(self, idx.cpu())
+        else:
+            if isinstance(idx, int):
+                return self.graphs[idx], self.labels[idx]
+            elif torch.is_tensor(idx) and idx.dtype == torch.long:
+                if idx.dim() == 0:
+                    return self.graphs[idx], self.labels[idx]
+                elif idx.dim() == 1:
+                    return Subset(self, idx.cpu())
+
+        raise IndexError(
+            'Only integers and long are valid '
+            'indices (got {}).'.format(type(idx).__name__))
+
+
+class AromaticityDataset(MoleculeCSVDataset):
+    def __init__(self, raw_dir):
+        self._url = 'dataset/pubchem_bioassay_aromaticity.csv'
+        data_path = raw_dir + '/pubchem_bioassay_aromaticity.csv'
+        download(_get_dgl_url(self._url), path=data_path, overwrite=False)
+        df = pd.read_csv(data_path)
+
+        super(AromaticityDataset, self).__init__(
+            df, smiles_to_bigraph, None, None, "cano_smiles",
+            './pubchem_aromaticity_dglgraph.bin', load=False, log_every=1000, n_jobs=1)
+        
+        label_tensor = torch.FloatTensor(self.labels).squeeze().long()
+        valid_classes = torch.bincount(label_tensor) >= 20
+        valid_indices = valid_classes[label_tensor].numpy().tolist()
+        new_label = torch.cumsum(valid_classes.long(), dim=-1) - 1
+        self.smiles = [self.smiles[i] for i in range(label_tensor.shape[0]) if valid_indices[i]]
+        self.graphs = [self.graphs[i] for i in range(label_tensor.shape[0]) if valid_indices[i]]
+        self.labels = torch.LongTensor([new_label[self.labels[i].long()] for i in range(label_tensor.shape[0]) if valid_indices[i]])
+        self.mask   = [  self.mask[i] for i in range(label_tensor.shape[0]) if valid_indices[i]]
+        for i in tqdm.trange(len(self.graphs)):
+            self.graphs[i].ndata['feat'] = torch.stack((self.graphs[i].in_degrees(), self.graphs[i].out_degrees()), dim=-1).float()
+        # self._labels = self.labels.clone()
+        
+    def __getitem__(self, idx):
+        if hasattr(self, '_task_specific_masks'):
+            if isinstance(idx, int):
+                return self.graphs[idx], self.labels[idx], self._task_specific_masks[idx]
+            elif torch.is_tensor(idx) and idx.dtype == torch.long:
+                if idx.dim() == 0:
+                    return self.graphs[idx], self.labels[idx], self._task_specific_masks[idx]
+                elif idx.dim() == 1:
+                    return Subset(self, idx.cpu())
+        else:
+            if isinstance(idx, int):
+                return self.graphs[idx], self.labels[idx]
+            elif torch.is_tensor(idx) and idx.dtype == torch.long:
+                if idx.dim() == 0:
+                    return self.graphs[idx], self.labels[idx]
+                elif idx.dim() == 1:
+                    return Subset(self, idx.cpu())
+
+
+class OgbgPpaSampledDataset:
+    def __init__(self, save_path):
+        dataset = DglGraphPropPredDataset(name = 'ogbg-ppa', root=save_path)
+        pkl_path = os.path.join(save_path, f'ogbg-ppa_metadata_domainIL.pkl')
+        download(f'https://github.com/jihoon-ko/BeGin/raw/main/metadata/ogbg-ppa_metadata_domainIL.pkl', path=pkl_path)
+        metadata = pickle.load(open(pkl_path, 'rb'))
+        self.graphs = []
+        for i in tqdm.tqdm(metadata['sampled_indices']):
+            graph = dataset.graphs[i]
+            graph.ndata['feat'] = torch.stack((graph.in_degrees(), graph.out_degrees()), dim=-1).float()
+            self.graphs.append(graph)
+            
+        self.labels = dataset.labels[metadata['sampled_indices']].squeeze()
+        
+    def __getitem__(self, idx):
+        '''Get datapoint with index'''
+        if isinstance(idx, int):
+            return self.graphs[idx], self.labels[idx]
+        elif torch.is_tensor(idx) and idx.dtype == torch.long:
+            if idx.dim() == 0:
+                return self.graphs[idx], self.labels[idx]
+            elif idx.dim() == 1:
+                return Subset(self, idx.cpu())
+
+        raise IndexError(
+            'Only integers and long are valid '
+            'indices (got {}).'.format(type(idx).__name__))
+    
+    def __len__(self):
+        return len(self.graphs)
+
+
+class SentimentGraphDataset(dgl.data.DGLBuiltinDataset):
+    _url = 'https://github.com/jihoon-ko/BeGin/raw/main/metadata/sentiment_metadata_allIL.pkl'
+  
+    def __init__(self, dataset_name, raw_dir=None, force_reload=False, verbose=False, transform=None):
+        super(SentimentGraphDataset, self).__init__(name='sentiment',
+                                                  url=self._url,
+                                                  raw_dir=raw_dir,
+                                                  force_reload=force_reload,
+                                                  verbose=verbose)
+
+    def download(self):
+        pkl_file_path = os.path.join(self.save_path, self.name + '_metadata_allIL.pkl')
+        download(self.url, path=pkl_file_path)
+        
+    def process(self):
+        metadata = pickle.load(open(os.path.join(self.save_path, 'sentiment_metadata_allIL.pkl'), 'rb'))
+        # {'graphs': graphs, 'inner_tvt_splits': inner_tvt_splits, 'time_info': time_info}
+        
+        self._graphs = []
+        self.labels = []
+        for g_data in metadata['graphs']:
+            # {'idx': idx, 'nfeats': torch.FloatTensor(nfeats), 'srcs': torch.LongTensor(srcs), 'dsts': torch.LongTensor(dsts), 'labels': rats[idx]}
+            nfeats, srcs, dsts, label = g_data['nfeats'], g_data['srcs'], g_data['dsts'], g_data['labels']
+            g = dgl.graph((srcs, dsts), num_nodes=nfeats.shape[0])
+            g.ndata['feat'] = torch.FloatTensor(nfeats)
+            self._graphs.append(dgl.add_self_loop(g))
+            self.labels.append(1 if label > 0 else 0)
+            
+        self.labels = torch.LongTensor(self.labels)
+        print(torch.bincount(self.labels))
+        
+        inner_tvt_splits = metadata['inner_tvt_splits'] 
+        self._train_masks = (inner_tvt_splits % 10) < 6
+        self._val_masks = ((inner_tvt_splits % 10) == 6) | ((inner_tvt_splits % 10) == 7)
+        self._test_masks = (inner_tvt_splits % 10) > 7
+        self._num_classes = self.labels.max().item() + 1
+        self._num_feats = self._graphs[0].ndata['feat'].shape[-1]
+        self._time_info = metadata['time_info']
+        
+    def has_cache(self):
+        graph_path = os.path.join(self.save_path,
+                                  self.save_name + '.bin')
+        info_path = os.path.join(self.save_path,
+                                 self.save_name + '.pkl')
+        if os.path.exists(graph_path) and \
+            os.path.exists(info_path):
+            return True
+
+        return False
+
+    def save(self):
+        """save the graph list and the labels"""
+        graph_path = os.path.join(self.save_path,
+                                  self.save_name + '.bin')
+        info_path = os.path.join(self.save_path,
+                                 self.save_name + '.pkl')
+        save_graphs(str(graph_path), self._graphs, {'y': self.labels, 'train_masks': self._train_masks, 'val_masks': self._val_masks, 'test_masks': self._test_masks, 'time_info': self._time_info})
+        save_info(str(info_path), {'num_classes': self._num_classes})
+
+    def load(self):
+        graph_path = os.path.join(self.save_path,
+                                  self.save_name + '.bin')
+        info_path = os.path.join(self.save_path,
+                                 self.save_name + '.pkl')
+        graphs, auxs = load_graphs(str(graph_path))
+        info = load_info(str(info_path))
+        self._num_classes = info['num_classes']
+        
+        self._graphs = graphs
+        self.labels = auxs['y']
+        self._train_masks = auxs['train_masks'].bool()
+        self._val_masks = auxs['val_masks'].bool()
+        self._test_masks = auxs['test_masks'].bool()
+        self._time_info = auxs['time_info'].long()
+        self._num_feats = self._graphs[0].ndata['feat'].shape[-1]
+        
+        if self.verbose:
+            print('num_graphs:', len(self._graphs), ', num_labels:', self.labels.shape, 'num_classes:', self._num_classes)
+            
+    def __getitem__(self, idx):
+        # print(self._task_specific_masks.shape)
+        if hasattr(self, '_task_specific_masks'):
+            return self._graphs[idx], self.labels[idx], self._task_specific_masks[idx]
+        else:
+            return self._graphs[idx], self.labels[idx]
+        
+    def __len__(self):
+        return len(self._graphs)
+
+    @property
+    def save_name(self):
+        return self.name + '_dgl_graph'
+
+    @property
+    def num_classes(self):
+        return self._num_classes
+    
+    @property
+    def num_feats(self):
+        return self._num_feats
+
+
+class ZINCGraphDataset:
+    def __init__(self, dataset_name, raw_dir=None, force_reload=False, verbose=False, transform=None):
+        self.data = [dgl.data.ZINCDataset(mode='train', raw_dir=raw_dir), dgl.data.ZINCDataset(mode='valid', raw_dir=raw_dir), dgl.data.ZINCDataset(mode='test', raw_dir=raw_dir)]
+        self._graphs = [*(self.data[0]._graphs), *(self.data[1]._graphs), *(self.data[2]._graphs)]
+        self.labels = torch.cat([(self.data[0]._labels['g_label']), (self.data[1]._labels['g_label']), (self.data[2]._labels['g_label'])], dim=-1).unsqueeze(-1)
+        self.metadata = torch.LongTensor([g.num_nodes() for g in self._graphs]) - 18
+        self._train_masks = ((torch.arange(12000) % 10) <= 8)
+        self._val_masks = ((torch.arange(12000) % 10) == 8)
+        self._test_masks = ((torch.arange(12000) % 10) > 8)
+        self.metadata[self.metadata < 0] = 0
+        self.metadata[self.metadata > 10] = 10
+    @property
+    def num_atom_types(self):
+        return 28
+
+    @property
+    def num_bond_types(self):
+        return 4
+
+    def __len__(self):
+        return len(self._graphs)
+        
+    def __getitem__(self, idx):
+        return self._graphs[idx], self.labels[idx]
+        
+    def __len__(self):
+        return len(self._graphs)
+
+    @property
+    def num_classes(self):
+        return 1
+
+
+class AQSOLGraphDataset:
+    def __init__(self, dataset_name, raw_dir=None, force_reload=False, verbose=False, transform=None):
+        pkl_path = os.path.join(raw_dir, f'aqsol_metadata_domainIL.pkl')
+        download(f'https://github.com/ShinhwanKang/BeGin/raw/main/metadata/aqsol_metadata_domainIL.pkl', pkl_path, overwrite=False)
+        metadata = pickle.load(open(pkl_path, 'rb'))
+        
+        self._graphs = []
+        self.labels = []
+        for g in chain.from_iterable(metadata):
+            curr_g = dgl.graph((torch.LongTensor(g[2][0]), torch.LongTensor(g[2][1])), num_nodes=g[0].shape[0])
+            curr_g.ndata['feat'] = torch.LongTensor(g[0])
+            curr_g.edata['edge_attr'] = torch.LongTensor(g[1])
+            curr_g.add_self_loop()
+            self._graphs.append(curr_g)
+            self.labels.append(g[3])
+        self.labels = torch.FloatTensor(self.labels).unsqueeze(-1)
+        self._train_masks = ((torch.arange(9982) % 10) <= 8)
+        self._val_masks = ((torch.arange(9982) % 10) == 8)
+        self._test_masks = ((torch.arange(9982) % 10) > 8)
+        self.metadata = torch.LongTensor(list(chain.from_iterable([[i for _ in range(len(metadata[i]))] for i in range(5)])))
+        
+    def __len__(self):
+        return len(self._graphs)
+        
+    def __getitem__(self, idx):
+        return self._graphs[idx], self.labels[idx]
+        
+    def __len__(self):
+        return len(self._graphs)
+
+    @property
+    def num_classes(self):
+        return 1
+

@@ -1,0 +1,13 @@
+schema: uefa-method-config
+version: 2
+name: fed_pub_uefa_v1
+strategy:
+  name: fed_pub
+  parameters:
+    tau: 3.0
+    lambda1: 0.001
+    lambda2: 0.001
+    proxy_seed: 0
+continual_method:
+  name: Bare
+  parameters: {}

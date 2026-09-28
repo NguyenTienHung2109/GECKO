@@ -1,0 +1,18 @@
+schema: uefa-method-config
+version: 2
+name: fed_pub_uefa_v1
+strategy:
+  name: fed_pub
+  parameters:
+    tau: 3.0
+    lambda1: 0.001
+    lambda2: 0.001
+    proxy_seed: 20240718
+continual_method:
+  name: TWP
+  parameters:
+    lambda_l: 10000.0
+    lambda_t: 10000.0
+    beta: 0.01
+    middle_layer_index: null
+    significant_threshold: 1.0e-12

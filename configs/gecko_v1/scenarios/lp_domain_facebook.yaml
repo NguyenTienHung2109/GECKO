@@ -1,0 +1,52 @@
+benchmark_name: UEFA
+benchmark_schema_version: 2
+seed: 0
+benchmark_seeds: [0, 1, 2, 3, 4]
+output_root: generated_streams
+scenario:
+  dataset: facebook
+  problem: LP
+  incremental_setting: domain
+  num_tasks: 2
+  domain_constructor: facebook_partition_first_domain_v1
+  metrics: [hits@50, mrr, average_precision, rocauc]
+  split_protocol: uefa_partition_first
+  feature_provenance: provided_node_attributes
+  lp_candidate_grouping: pooled_per_client_task
+  hits_tie_policy: pessimistic
+  minimum_evaluation_negatives: 50
+  lp_protocol_name: uefa_lp_partition_first_fixed_candidates
+  lp_protocol_version: 2
+  lp_query_split_protocol: partition_first_query_split_v1
+  lp_base_topology_policy: endpoint_hash_holdout
+  lp_base_edge_ratio: 0.10
+  lp_source_num_domains: 8
+  lp_domain_mapping: dominant_source_vs_rest_v1
+  lp_evaluation_positives_per_task: 1000
+  lp_evaluation_negatives_per_client_task: 1000
+partition:
+  num_clients: 10
+  spatial_profile: mild
+  micro_partition_multiplier: 150
+  client_size_tolerance: 0.20
+  minimum_train_queries_per_client_task: 5
+  minimum_validation_queries_per_client_task: 1
+  minimum_test_queries_per_client_task: 1
+  maximum_assignment_iterations: 500
+  maximum_lp_partition_proposals: 5
+  allow_infeasible: false
+  minimum_lp_internal_candidate_coverage: 0.40
+  minimum_lp_internal_positive_coverage: 0.40
+  lp_partition_information_scope: topology_only
+order: {profile: binary_mismatch}
+training:
+  participation_fraction: 0.5
+  rounds_per_stage: 10
+  local_epochs_per_round: 1
+  learning_rate: 0.01
+  optimizer_state_across_rounds: reset
+  aggregation_weight: current_positive_anchor_count
+  fedprox_mu: 0.01
+  hidden_size: 256
+  num_layers: 3
+wandb: {mode: disabled, project: UEFA}
