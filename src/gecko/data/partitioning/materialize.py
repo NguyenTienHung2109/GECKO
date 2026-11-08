@@ -24,7 +24,18 @@ def derive_strict_local_node_features(
     global_nodes: torch.Tensor,
     internal_edge_mask: torch.Tensor,
 ) -> torch.Tensor:
-    """Aggregate only visible internal edge features for owned nodes."""
+    """Derive features exclusively from the declared visible base context."""
+
+    if spec.metadata.get("feature_provenance") == "strict_local_base_degree":
+        if spec.problem_type != "LP" or spec.metadata.get("partition_base_policy") != "endpoint_hash_holdout":
+            raise ValueError("Local-base degree requires a partition-first LP base graph.")
+        global_to_local = torch.full((spec.node_features.shape[0],), -1, dtype=torch.long)
+        global_to_local[global_nodes] = torch.arange(len(global_nodes))
+        endpoints = spec.edge_index[:, internal_edge_mask]
+        if bool((global_to_local[endpoints] < 0).any()):
+            raise ValueError("Base-degree feature received a nonlocal edge.")
+        # Symmetric base arcs: destination count is undirected degree before model self-loops.
+        return torch.bincount(global_to_local[endpoints[1]], minlength=len(global_nodes)).float().unsqueeze(1)
 
     edge_features = spec.metadata["context_edge_features"]
     valid = spec.metadata.get("context_edge_feature_valid_mask")
@@ -117,7 +128,7 @@ class PersistentSubgraphPartitioner:
             global_to_local_tensor[global_nodes] = torch.arange(global_nodes.shape[0])
             internal = (source_owner == client_id) & (target_owner == client_id)
             local_edges = global_to_local_tensor[spec.edge_index[:, internal]]
-            if feature_provenance == "strict_local_derived":
+            if feature_provenance in {"strict_local_derived", "strict_local_base_degree"}:
                 node_features = derive_strict_local_node_features(
                     spec, global_nodes, internal
                 )
@@ -235,7 +246,7 @@ def rematerialize_partition_context(
         global_to_local_tensor[global_nodes] = torch.arange(global_nodes.shape[0])
         internal = (source_owner == client_id) & (target_owner == client_id)
         local_edges = global_to_local_tensor[spec.edge_index[:, internal]]
-        if feature_provenance == "strict_local_derived":
+        if feature_provenance in {"strict_local_derived", "strict_local_base_degree"}:
             node_features = derive_strict_local_node_features(
                 spec, global_nodes, internal
             )
@@ -343,7 +354,7 @@ def materialize_direct_partition(
         global_to_local[global_nodes] = torch.arange(global_nodes.numel())
         internal = (source_owner == client_id) & (target_owner == client_id)
         local_edges = global_to_local[spec.edge_index[:, internal]]
-        if feature_provenance == "strict_local_derived":
+        if feature_provenance in {"strict_local_derived", "strict_local_base_degree"}:
             features = derive_strict_local_node_features(spec, global_nodes, internal)
         else:
             features = spec.node_features[global_nodes].detach().cpu().clone()
@@ -381,5 +392,4 @@ def materialize_direct_partition(
         micro_community_ids=direct_sentinel,
         diagnostics=diagnostics,
     )
-
 

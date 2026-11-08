@@ -106,13 +106,19 @@ def load_scenario_spec(config: GECKOConfig) -> ScenarioSpec:
         from gecko.data.legacy.links import LCScenarioLoader
 
         loader = LCScenarioLoader(**common)
+    elif scenario.problem == "LP" and scenario.domain_constructor == "facebook_partition_first_local_base_v2":
+        from gecko.data.datasets.facebook_clean import load_clean_facebook
+
+        loader = None
+        exported = load_clean_facebook(Path(scenario.save_path))
     elif scenario.problem == "LP":
         from gecko.data.legacy.links import LPScenarioLoader
 
         loader = LPScenarioLoader(**common)
     else:
         raise ValueError(f"Unsupported UEFA problem: {scenario.problem}")
-    exported = loader.export_spec()
+    if loader is not None:
+        exported = loader.export_spec()
     if (
         scenario.problem == "LP"
         and scenario.lp_query_split_protocol == "partition_first_query_split_v1"
@@ -127,7 +133,11 @@ def load_scenario_spec(config: GECKOConfig) -> ScenarioSpec:
             seed=config.seed,
             domain_mapping=scenario.lp_domain_mapping,
         )
-    provenance = _dataset_provenance(scenario.dataset, scenario.save_path)
+    if scenario.domain_constructor == "facebook_partition_first_local_base_v2":
+        provenance = {name: exported.metadata[name] for name in
+                      ("dataset_version", "raw_dataset_checksums", "processed_cache_checksums")}
+    else:
+        provenance = _dataset_provenance(scenario.dataset, scenario.save_path)
     constructor_version = exported.metadata.get("constructor_version")
     if constructor_version is None and scenario.domain_constructor is not None:
         constructor_version = 1

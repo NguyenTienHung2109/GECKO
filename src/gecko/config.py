@@ -225,8 +225,16 @@ class GECKOConfig:
             "provided_node_attributes",
             "strict_local_derived",
             "public_global_precomputed",
+            "strict_local_base_degree",
         }:
             raise ConfigurationError("Unknown feature_provenance policy.")
+        clean_facebook = self.scenario.domain_constructor == "facebook_partition_first_local_base_v2"
+        if clean_facebook or self.scenario.feature_provenance == "strict_local_base_degree":
+            if not (clean_facebook and key == ("LP", "domain")
+                    and self.scenario.dataset == "facebook"
+                    and self.scenario.feature_provenance == "strict_local_base_degree"
+                    and self.scenario.lp_query_split_protocol == "partition_first_query_split_v1"):
+                raise ConfigurationError("Clean Facebook requires injective v2 identities and partition-first local-base degree together.")
         if self.scenario.lp_candidate_grouping not in {
             "pooled_per_client_task",
             "per_positive",
