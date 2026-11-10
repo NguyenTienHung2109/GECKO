@@ -302,7 +302,7 @@ def test_graphkeeper_lp_experts_router_and_checkpoint_roundtrip() -> None:
     assert diagnostics["method"] == "GraphKeeper-LP"
     assert (
         diagnostics["method_version"]
-        == "uefa-graphkeeper-lp-v3-paper-faithful-objectives-normalized-routing"
+        == "uefa-graphkeeper-lp-v4-shared-backbone-consolidation"
     )
     assert diagnostics["problem_type"] == "LP"
     assert diagnostics["prediction_unit"] == "edge_hadamard"
@@ -345,7 +345,7 @@ def test_graphkeeper_lp_experts_router_and_checkpoint_roundtrip() -> None:
         nc.load_method_state(algorithm.save_method_state())
 
     old_lp_state = copy.deepcopy(algorithm.save_method_state())
-    old_lp_state["format"] = "uefa-graphkeeper-lp-private-state-v2"
+    old_lp_state["format"] = "uefa-graphkeeper-lp-private-state-v3"
     with pytest.raises(ValueError, match="checkpoint schema"):
         restored.load_method_state(old_lp_state)
 
@@ -579,8 +579,9 @@ def test_graphkeeper_lp_synthetic_domain_end_to_end() -> None:
 
 
 @pytest.mark.parametrize("strategy", ["fedavg", "fedprox"])
+@pytest.mark.parametrize("prediction_head", ["ridge", "dot_product"])
 def test_graphkeeper_lp_federated_backbone_keeps_method_state_private(
-    strategy: str,
+    strategy: str, prediction_head: str, monkeypatch,
 ) -> None:
     config = make_config(
         "LP",
@@ -604,16 +605,32 @@ def test_graphkeeper_lp_federated_backbone_keeps_method_state_private(
             "LP", "domain", num_tasks=2, num_clients=2, seed=0
         )
     )
+    method_config = _method_config(stage_count=2, strategy=strategy)
+    if prediction_head == "dot_product":
+        method_config["continual_method"]["parameters"]["prediction_head"] = prediction_head
     coordinator = FederatedCoordinator(
         stream,
         strategy,
         "GraphKeeper-LP",
         model_name="uefa_gcn",
-        method_config=_method_config(stage_count=2, strategy=strategy),
+        method_config=method_config,
     )
 
+    stage_zero_clients = set()
+    consolidate = GraphKeeperLPAlgorithm.consolidate
+
+    def check_shared_backbone(algorithm, model, context):
+        if context.stage_index == 0:
+            local = coordinator.parameter_policy.extract(model)
+            assert all(torch.equal(value, local[name])
+                       for name, value in coordinator.global_state.items())
+            stage_zero_clients.add(algorithm.client_id)
+        consolidate(algorithm, model, context)
+
+    monkeypatch.setattr(GraphKeeperLPAlgorithm, "consolidate", check_shared_backbone)
     result = coordinator.run()
 
+    assert stage_zero_clients == {0, 1}
     assert all(
         record["communication_payload_bytes"] > 0 for record in result["rounds"]
     )
@@ -627,7 +644,15 @@ def test_graphkeeper_lp_federated_backbone_keeps_method_state_private(
         assert set(client.algorithm.state["adapters"]) == {"0", "1"}
         assert set(client.algorithm.state["routing_prototypes"]) == {"0", "1"}
         assert set(client.algorithm.state["inter_prototypes"]) == {"0", "1"}
-        assert "analytic_w" in client.algorithm.state
+        state = client.algorithm.state
+        if prediction_head == "dot_product":
+            assert not any(state[name].numel() for name in ("analytic_a", "analytic_c", "analytic_w"))
+            embeddings = torch.tensor([[1.0, 2.0], [-3.0, 0.0]])
+            logits = client.algorithm._analytic_logits(client.model, embeddings)
+            assert torch.equal(logits, torch.tensor([3.0, -3.0]))
+        else:
+            assert state["analytic_w"].numel() > 0
+        assert client.algorithm.diagnostics()["prediction_head"] == prediction_head
     private_tokens = ("adapter", "router", "prototype", "analytic", "ridge")
     assert not any(
         token in key.lower()

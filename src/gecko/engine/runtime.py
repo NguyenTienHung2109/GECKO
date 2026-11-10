@@ -2309,6 +2309,20 @@ class StatefulFederatedRuntime:
             for client_id in sorted(stage_participants):
                 client = self.coordinator.clients[client_id]
                 context = method_contexts[client_id]
+                if (
+                    stage == 0
+                    and isinstance(self.strategy, LegacyStrategyAdapter)
+                    and self.strategy.aggregates
+                    and client.algorithm.consolidate_first_stage_with_shared_backbone
+                ):
+                    # Fit private statistics in the feature space of the finalized,
+                    # frozen shared encoder used by subsequent rounds and evaluation.
+                    boundary = RoundContext(stage, rounds_per_stage, (client_id,), {
+                        client_id: context.global_task_id,
+                    })
+                    payload = self.strategy.prepare_payload(boundary, client_id, "training")
+                    self.strategy.client_receive(client, payload, context)
+                    self.resource_ledger.merge(payload.resources)
                 client.consolidate_task_stateful(context)
                 consolidate_client = getattr(self.strategy, "consolidate_client", None)
                 if callable(consolidate_client):

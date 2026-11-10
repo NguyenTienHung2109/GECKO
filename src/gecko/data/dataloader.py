@@ -111,6 +111,11 @@ def load_scenario_spec(config: GECKOConfig) -> ScenarioSpec:
 
         loader = None
         exported = load_clean_facebook(Path(scenario.save_path))
+    elif scenario.problem == "LP" and scenario.domain_constructor == "lp_expansion_partition_first_local_base_v1":
+        from gecko.data.datasets.lp_expansion import load_lp_expansion
+
+        loader = None
+        exported = load_lp_expansion(scenario.dataset, Path(scenario.save_path))
     elif scenario.problem == "LP":
         from gecko.data.legacy.links import LPScenarioLoader
 
@@ -133,7 +138,7 @@ def load_scenario_spec(config: GECKOConfig) -> ScenarioSpec:
             seed=config.seed,
             domain_mapping=scenario.lp_domain_mapping,
         )
-    if scenario.domain_constructor == "facebook_partition_first_local_base_v2":
+    if loader is None:
         provenance = {name: exported.metadata[name] for name in
                       ("dataset_version", "raw_dataset_checksums", "processed_cache_checksums")}
     else:

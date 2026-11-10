@@ -520,40 +520,45 @@ def finalize_partition_first_lp_selected_positives(
     candidate_groups: Dict[int, Dict[str, torch.Tensor]] = {
         task: {} for task in range(spec.num_tasks)
     }
-    for task in range(spec.num_tasks):
-        for split_index, split in enumerate(split_names):
-            negative_parts: list[torch.Tensor] = []
-            negative_groups: list[torch.Tensor] = []
-            positive_groups = groups[task][split]
-            for client in range(num_clients):
-                group_id = ((client * spec.num_tasks + task) * 3) + split_index
-                positive_count = int((positive_groups == group_id).sum())
-                count = (
-                    round(positive_count * training_negative_ratio)
-                    if split == "train"
-                    else evaluation_negatives_per_client_task
-                )
-                negative_parts.append(
-                    _sample_owned_negative_pairs(
-                        node_ids=torch.nonzero(owner == client, as_tuple=True)[0],
-                        num_nodes=num_nodes,
-                        positive_keys=positive_keys,
-                        used_keys=used_negative_keys,
-                        count=count,
-                        generator=torch_generator(
-                            seed,
-                            "lp-selected-positive-negatives",
-                            client,
-                            task,
-                            split,
-                        ),
-                    )
-                )
-                negative_groups.append(torch.full((count,), group_id, dtype=torch.long))
-            negatives[task][split] = torch.cat(negative_parts, dim=0)
-            candidate_groups[task][split] = torch.cat(
-                (positive_groups, *negative_groups), dim=0
+    sampling_order = [(task, split) for task in range(spec.num_tasks) for split in split_names]
+    evaluation_first = spec.metadata.get("lp_evaluation_negatives_first", False)
+    if evaluation_first:
+        # Reserve evaluation negatives before alpha-dependent training negatives.
+        sampling_order.sort(key=lambda item: item[1] == "train")
+    for task, split in sampling_order:
+        split_index = split_names.index(split)
+        negative_parts: list[torch.Tensor] = []
+        negative_groups: list[torch.Tensor] = []
+        positive_groups = groups[task][split]
+        for client in range(num_clients):
+            group_id = ((client * spec.num_tasks + task) * 3) + split_index
+            positive_count = int((positive_groups == group_id).sum())
+            count = (
+                round(positive_count * training_negative_ratio)
+                if split == "train"
+                else evaluation_negatives_per_client_task
             )
+            negative_parts.append(
+                _sample_owned_negative_pairs(
+                    node_ids=torch.nonzero(owner == client, as_tuple=True)[0],
+                    num_nodes=num_nodes,
+                    positive_keys=positive_keys,
+                    used_keys=used_negative_keys,
+                    count=count,
+                    generator=torch_generator(
+                        seed,
+                        "lp-selected-positive-negatives",
+                        client,
+                        task,
+                        split,
+                    ),
+                )
+            )
+            negative_groups.append(torch.full((count,), group_id, dtype=torch.long))
+        negatives[task][split] = torch.cat(negative_parts, dim=0)
+        candidate_groups[task][split] = torch.cat(
+            (positive_groups, *negative_groups), dim=0
+        )
 
     ordered_pairs: list[torch.Tensor] = []
     ordered_tasks: list[torch.Tensor] = []
@@ -594,6 +599,7 @@ def finalize_partition_first_lp_selected_positives(
         metadata={
             **spec.metadata,
             "partition_first_pending": False,
+            **({"negative_sampler_version": 2} if evaluation_first else {}),
             "partition_first_release_protocol": True,
             "partition_internal_positive_count": int(pool_internal.sum()),
             "partition_internal_positive_coverage": float(pool_internal.float().mean()),

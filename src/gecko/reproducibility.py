@@ -30,7 +30,14 @@ def python_random(base_seed: int, *parts: Any) -> random.Random:
 
 def repository_root() -> Path:
     """Locate the source checkout without depending on module nesting depth."""
-    for parent in Path(__file__).resolve().parents:
+    module_path = Path(__file__).resolve()
+    for parent in module_path.parents:
+        source = parent / "src" / "gecko"
+        if (parent / "pyproject.toml").is_file() and source.is_dir() and module_path.is_relative_to(source):
+            return parent
+    # A wheel installed into a venv nested inside another checkout must not
+    # accidentally resolve configs from that unrelated ancestor checkout.
+    for parent in (Path.cwd(), *Path.cwd().parents):
         if (parent / "pyproject.toml").is_file() and (parent / "src" / "gecko").is_dir():
             return parent
-    raise ValueError("The GECKO source checkout cannot be resolved for provenance.")
+    raise ValueError("GECKO recipes require the extracted source directory; run from it or install it with pip install -e .")

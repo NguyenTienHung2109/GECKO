@@ -1,0 +1,96 @@
+{
+  "release": "0.4.1",
+  "tests": {
+    "passed": 946,
+    "failed": 0,
+    "warnings": 863
+  },
+  "predefined_catalog": {
+    "streams": 228,
+    "unique_tensors": 16589,
+    "external_tensor_references": 1428,
+    "status": "stored_payloads_verified",
+    "raw_graphs_verified": false
+  },
+  "original_source_sidecars": {
+    "checked": 1140,
+    "mismatches": []
+  },
+  "primary_paper_result_linkage": {
+    "records_checked": 544,
+    "matched": 544,
+    "mismatches": []
+  },
+  "real_imports": [
+    {
+      "id": "S2-s0-a0.1-synchronized",
+      "tensor_parity": true
+    },
+    {
+      "id": "S3-s0-a0.1-synchronized",
+      "tensor_parity": true
+    },
+    {
+      "id": "S5-s0-a100-synchronized",
+      "tensor_parity": true,
+      "public_loader": true,
+      "benchmark_eligible": true,
+      "release_status": "eligible"
+    },
+    {
+      "id": "S6-s1-a0.1-synchronized",
+      "tensor_parity": true,
+      "public_loader": true,
+      "benchmark_eligible": false,
+      "release_status": "blocked"
+    },
+    {
+      "id": "S7-s0-a100-synchronized",
+      "offline_import": true,
+      "tensor_parity": true,
+      "public_loader": true,
+      "benchmark_eligible": true,
+      "release_status": "eligible"
+    },
+    {
+      "id": "LP-Facebook-clean-k3-s0-a100-synchronized",
+      "offline_import": true,
+      "tensor_parity": true,
+      "public_loader": true,
+      "benchmark_eligible": true,
+      "release_status": "eligible"
+    },
+    {
+      "id": "LP-WikiCS-k10-s0-a100-synchronized",
+      "offline_import": true,
+      "tensor_parity": true,
+      "public_loader": true,
+      "benchmark_eligible": true,
+      "release_status": "eligible"
+    },
+    {
+      "id": "LP-Collab-k10-s0-a100-synchronized",
+      "offline_import": true,
+      "tensor_parity": true,
+      "public_loader": true,
+      "benchmark_eligible": true,
+      "release_status": "eligible"
+    }
+  ],
+  "archive_smoke": {
+    "status": "passed",
+    "new_virtual_environment": true,
+    "dependencies": "shared preinstalled libraries; no fresh dependency resolution claimed",
+    "editable_install_from_extracted_snapshot": true,
+    "git_directory_present": false,
+    "synthetic_construct_train_report": true,
+    "paper_plan": true,
+    "fixed_split_plan": true,
+    "offline_S5_materialization": true,
+    "additional_portability_tests_passed": 12
+  },
+  "privacy_scan": {
+    "identity_or_private_path_matches": 0,
+    "git_metadata_in_archive": false
+  }
+}

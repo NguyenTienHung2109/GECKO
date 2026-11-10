@@ -2,9 +2,10 @@
 
 ## Scope
 
-This source archive contains implementations, configurations, and scientific
-tests. It does not contain datasets, frozen experiment payloads, or a claim
-that all manuscript numbers have been reproduced. `examples/benchmark.py`
+This review release contains implementations, configurations, scientific tests,
+and predefined split payloads described in [the split guide](../splits/README.md).
+It does not claim that all manuscript numbers have been reproduced.
+See [release changes](release_changes.md) for post-submission corrections. `examples/benchmark.py`
 exposes the seven scenarios in manuscript Table 2 through the existing
 construction and training APIs. It does not reimplement the algorithms.
 
@@ -73,8 +74,8 @@ downloaded archive only; it does not determine whether training can run.
 
 Upstream terms and dataset citations apply; the source license does not
 relicense datasets. Some loaders retrieve published BeGin split metadata.
-Those upstream links are functional data sources. Raw and processed data
-are intentionally absent. Use `--data-root data` or another writable cache
+Those upstream links are functional data sources. Raw NC downloads are absent; compact derived LC/LP data and frozen split
+indices are included under upstream dataset terms. Use `--data-root data` or another writable cache
 directory. Resolved experiment configurations belong under `--output`, not
 inside the source package. Preserve the identities of downloaded inputs
 when reporting a reconstruction.
@@ -255,6 +256,11 @@ After extraction, run the synthetic example and selected scenario tests,
 then the full included suite with required optional dependencies installed.
 Record skips, failures, hardware, and commands honestly. Passing source tests
 or an audit is not equivalent to reproducing a benchmark table.
+
+The predefined importer restores saved assignments without rerunning partition
+or query selection; it verifies every stored and reconstructed tensor. Imported
+schema-2 container fingerprints differ from the historical containers; source
+fingerprints are retained separately in the catalog cell provenance.
 
 Finalized stream metadata and tensor checksums protect scientific data from
 corruption and are generated automatically by construction. They are

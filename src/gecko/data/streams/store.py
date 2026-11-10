@@ -603,7 +603,7 @@ def _save_stream_unlocked(
         ],
         "domain_constructor_version": bundle.scenario.metadata.get("constructor_version"),
             "partitioner_version": 7,
-        "negative_sampler_version": 1,
+        "negative_sampler_version": bundle.scenario.metadata.get("negative_sampler_version", 1),
         "environment_fingerprint": environment["environment_fingerprint"],
         "lp_protocol": (
             {

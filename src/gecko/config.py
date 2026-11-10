@@ -228,13 +228,24 @@ class GECKOConfig:
             "strict_local_base_degree",
         }:
             raise ConfigurationError("Unknown feature_provenance policy.")
-        clean_facebook = self.scenario.domain_constructor == "facebook_partition_first_local_base_v2"
-        if clean_facebook or self.scenario.feature_provenance == "strict_local_base_degree":
-            if not (clean_facebook and key == ("LP", "domain")
-                    and self.scenario.dataset == "facebook"
+        clean_lp_datasets = {
+            "facebook_partition_first_local_base_v2": {"facebook"},
+            "lp_expansion_partition_first_local_base_v1": {"ogbl-collab", "wikics"},
+        }
+        constructor = self.scenario.domain_constructor
+        if constructor in clean_lp_datasets or self.scenario.feature_provenance == "strict_local_base_degree":
+            if not (self.scenario.dataset in clean_lp_datasets.get(constructor, set())
+                    and key == ("LP", "domain")
                     and self.scenario.feature_provenance == "strict_local_base_degree"
                     and self.scenario.lp_query_split_protocol == "partition_first_query_split_v1"):
-                raise ConfigurationError("Clean Facebook requires injective v2 identities and partition-first local-base degree together.")
+                raise ConfigurationError("Clean LP constructors require their registered dataset and partition-first local-base degree.")
+        lp_expansion = constructor == "lp_expansion_partition_first_local_base_v1"
+        if lp_expansion and (
+            self.scenario.num_tasks != 2
+            or self.scenario.lp_source_num_domains != 2
+            or self.scenario.lp_protocol_name != "uefa_lp_partition_first_fixed_candidates"
+        ):
+            raise ConfigurationError("The LP expansion requires two domains and LP protocol v2.")
         if self.scenario.lp_candidate_grouping not in {
             "pooled_per_client_task",
             "per_positive",
@@ -269,7 +280,9 @@ class GECKOConfig:
                 "lp_legacy_score_comparable": False,
                 "lp_query_split_protocol": "partition_first_query_split_v1",
                 "lp_base_topology_policy": "endpoint_hash_holdout",
-                "lp_domain_mapping": "dominant_source_vs_rest_v1",
+                "lp_domain_mapping": (
+                    "contiguous_merge" if lp_expansion else "dominant_source_vs_rest_v1"
+                ),
             }
             for field_name, expected_value in expected_lp_protocol.items():
                 if getattr(self.scenario, field_name) != expected_value:

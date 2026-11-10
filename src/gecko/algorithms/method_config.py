@@ -800,11 +800,19 @@ def _cat_parameters(
 
 
 def _graphkeeper_parameters(
-    values: Mapping[str, Any], expected_fields: Tuple[str, ...], *, label: str
+    values: Mapping[str, Any], expected_fields: Tuple[str, ...], *, label: str,
+    allow_lp_head: bool = False,
 ) -> Tuple[Tuple[str, MethodParameterValue], ...]:
     expected = frozenset(expected_fields)
+    if allow_lp_head and "prediction_head" in values:
+        expected |= {"prediction_head"}
     _exact_fields(values, expected, label=label)
     normalized: Dict[str, MethodParameterValue] = {}
+    if "prediction_head" in expected:
+        head = values["prediction_head"]
+        if not isinstance(head, str) or head not in {"ridge", "dot_product"}:
+            raise MethodConfigValidationError(f"{label}.prediction_head must be ridge or dot_product.")
+        normalized["prediction_head"] = head
     for name in (
         "dbscan_min_samples",
         "max_cluster_nodes",
@@ -1608,6 +1616,7 @@ def resolve_method_config(
             raw_continual_parameters,
             family.continual_parameter_fields,
             label="continual_method.parameters",
+            allow_lp_head=continual_name == "GraphKeeper-LP",
         )
     elif name in {
         "dslr_uefa_v1",
@@ -1842,6 +1851,9 @@ def resolve_method_config(
                 "lp_edge_oracle_checkpoint_federated_state_boundary_fail_closed_"
                 "and_synthetic_end_to_end_tests"
             )
+            if dict(continual_parameters).get("prediction_head") == "dot_product":
+                support_status = "diagnostic_only"
+                reason = "GraphKeeper-LP dot product removes the recursive ridge classifier for an ablation."
     elif name in {
         "dslr_uefa_v1",
         "dslr_normalized_v1",

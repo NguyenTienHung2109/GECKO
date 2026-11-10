@@ -6,7 +6,7 @@ from torch import nn
 GRAPHKEEPER_STATE_FORMAT = "uefa-graphkeeper-private-state-v3"
 
 
-GRAPHKEEPER_LP_STATE_FORMAT = "uefa-graphkeeper-lp-private-state-v3"
+GRAPHKEEPER_LP_STATE_FORMAT = "uefa-graphkeeper-lp-private-state-v4"
 
 
 def _positive_pairs(labels: torch.Tensor) -> torch.Tensor:

@@ -54,6 +54,7 @@ class ClientContinualAlgorithm:
     name = "Bare"
 
     method_version = "1"
+    consolidate_first_stage_with_shared_backbone = False
 
     def __init__(
         self,
