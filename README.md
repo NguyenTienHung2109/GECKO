@@ -42,15 +42,3 @@ python -m gecko.benchmarks.paper --stage run --scenarios S2 --methods GEM \
 
 Use `--help` for options, or `python reproduce/smoke.py` for a small synthetic CPU run.
 New construction follows the recipe; use saved splits for the exact released assignments.
-
-## Scope
-
-Legacy and clean LP splits are separate. Clean Facebook corrects node IDs and
-features; current GraphKeeper-LP uses v4 consolidation (submitted: v3), with ridge
-as default and dot product as an optional diagnostic. Original S3 is construction-only;
-S6 seed 1 / alpha 0.1 remains blocked by validation-support checks. This release
-does not certify reproduction of every reported score. Dataset terms and
-third-party attribution remain in `LICENSE` and `NOTICE`.
-
-For anonymous hosting, export without Git history:
-`python reproduce/package.py --output /tmp/gecko-reviewer.zip`.
