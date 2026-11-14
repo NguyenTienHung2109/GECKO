@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gecko"
-version = "0.4.1"
+version = "0.4.2"
 description = "Federated continual graph-learning benchmark"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
@@ -17,7 +17,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<9"]
 graph = [
     "dgl==1.1.3",
     "ogb==1.3.6",
@@ -40,7 +39,7 @@ where = ["src"]
 include = ["gecko", "gecko.*"]
 
 [tool.setuptools]
-license-files = ["LICENSE.md", "NOTICE"]
+license-files = ["LICENSE", "NOTICE"]
 
 [tool.setuptools.package-data]
 "gecko.compat" = ["source_paths.json"]

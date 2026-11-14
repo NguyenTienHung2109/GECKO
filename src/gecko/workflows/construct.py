@@ -104,7 +104,7 @@ def command_generate(args: argparse.Namespace) -> int:
     if config.partition.dirichlet_alpha is not None:
         raise ConfigurationError(
             "Explicit allocation_alpha requires exact Dirichlet construction. "
-            "Use examples/benchmark.py; generic construct only builds legacy heuristic streams."
+            "Use python -m gecko.benchmarks.paper; generic construct only builds legacy heuristic streams."
         )
     load_start = time.perf_counter()
     scenario = load_scenario_spec(config)

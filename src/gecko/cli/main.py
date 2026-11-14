@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     generate = subparsers.add_parser("generate", aliases=["construct"], help="construct a fixed stream")
     generate.add_argument("--config", required=True)
     generate.add_argument("--spatial-profile", choices=("easy", "mild", "hard"), help="Legacy heuristic partition profile.")
-    generate.add_argument("--allocation-alpha", type=float, help="Explicit allocation alpha; exact construction uses examples/benchmark.py.")
+    generate.add_argument("--allocation-alpha", type=float, help="Explicit allocation alpha; exact construction uses python -m gecko.benchmarks.paper.")
     generate.add_argument("--dirichlet-alpha", type=float, help=argparse.SUPPRESS)
     generate.add_argument("--task-order", choices=PAPER_TASK_ORDERS)
     generate.add_argument(

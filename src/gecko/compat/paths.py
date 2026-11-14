@@ -27,9 +27,10 @@ def resolve_source_path(path: str | Path, *, root: str | Path | None = None) -> 
     mapped = _source_paths().get(relative)
     if mapped is None:
         for old, new in (
-            ("configs/uefa_v1/methods", "configs/gecko_v1/algorithms"),
-            ("configs/uefa_v1/experimental", "configs/gecko_v1/campaigns"),
-            ("configs/uefa_v1", "configs/gecko_v1/scenarios"),
+            ("configs/gecko_v1", "reproduce/configs/gecko_v1"),
+            ("configs/uefa_v1/methods", "reproduce/configs/gecko_v1/algorithms"),
+            ("configs/uefa_v1/experimental", "reproduce/configs/gecko_v1/campaigns"),
+            ("configs/uefa_v1", "reproduce/configs/gecko_v1/scenarios"),
         ):
             if relative == old or relative.startswith(old + "/"):
                 mapped = new + relative[len(old):]

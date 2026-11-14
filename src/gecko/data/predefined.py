@@ -21,6 +21,8 @@ from typing import Any, Callable
 import numpy as np
 import torch
 
+from gecko.reproducibility import repository_root
+
 FORMAT = "gecko-predefined-v1"
 
 
@@ -329,7 +331,7 @@ def load_predefined(root: Path, cell_id: str, data_root: Path, *, raw_loader=Non
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("list", "verify", "materialize"))
-    parser.add_argument("--catalog", type=Path, default=Path("splits/predefined"))
+    parser.add_argument("--catalog", type=Path, default=repository_root() / "reproduce/splits")
     parser.add_argument("--id", dest="cell_id")
     parser.add_argument("--data-root", type=Path, default=Path("data"))
     parser.add_argument("--output", type=Path, default=Path("generated_streams/predefined"))

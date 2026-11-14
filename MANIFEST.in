@@ -1,8 +1,3 @@
-include README.md LICENSE.md NOTICE environment.yml pytest.ini
-recursive-include configs *.yaml
-recursive-include docs *.md *.json
-recursive-include examples *.py
-recursive-include tools *.py
-recursive-include tests *.py
-recursive-include splits *.json *.gz *.md
+include README.md LICENSE NOTICE
+recursive-include reproduce *.py *.yaml *.yml *.json *.gz
 recursive-exclude * __pycache__ *.pyc *.pyo

@@ -179,7 +179,7 @@ def resolve_method(selection: PaperSelection, name: str) -> dict[str, Any]:
 
     spec = selection.scenario
     method = METHODS[name]
-    relative = Path("configs/gecko_v1/algorithms") / method.configs[spec.scenario_id]
+    relative = Path("reproduce/configs/gecko_v1/algorithms") / method.configs[spec.scenario_id]
     payload = yaml.safe_load((source_root() / relative).read_text(encoding="utf-8"))
     resolved = validate_method_config(
         payload, expected_strategy=method.strategy,
@@ -210,7 +210,7 @@ def build_plan(selections: Sequence[PaperSelection], output: Path) -> dict[str, 
             "problem": spec.problem, "incremental_setting": spec.incremental_setting,
             "num_tasks": spec.num_tasks, "num_clients": spec.num_clients,
             "coverage": spec.coverage, "construction_only": spec.construction_only,
-            "config": f"configs/gecko_v1/scenarios/{spec.config_name}",
+            "config": f"reproduce/configs/gecko_v1/scenarios/{spec.config_name}",
             "allocation_alphas": selection.allocation_alphas, "task_orders": selection.task_orders,
             "seeds": selection.seeds, "rounds_per_stage": 50, "local_epochs_per_round": 1,
             "clients_per_round": 2 if spec.problem == "LP" else 5,
@@ -228,7 +228,7 @@ def build_plan(selections: Sequence[PaperSelection], output: Path) -> dict[str, 
             "total_stream_cells": sum(row["stream_cells"] for row in records),
             "total_training_jobs": sum(row["training_jobs"] for row in records),
             "claim": "Recipe reconstruction, not frozen-payload or reported-score equality; method support statuses are not upgraded.",
-            "test_scope": "No-download support contracts and synthetic behavioral tests; not the full real-data paper experiments."}
+            "test_scope": "Release integrity, fixed-input verification and a synthetic CPU workflow; not numerical paper reproduction."}
 
 
 def _public_order(profile: str) -> str:
@@ -265,7 +265,7 @@ def construct(selection: PaperSelection, output: Path, data_root: Path | None = 
     from gecko.data.partitioning.base import participation_hash
     from gecko.data.streams import derive_participation_variant
     from gecko.types import ParticipationPlan
-    from tools.derive_gecko_participation_grid import atomic_json, atomic_yaml, verify_derivation
+    from gecko.benchmarks.derive_participation import atomic_json, atomic_yaml, verify_derivation
 
     spec = selection.scenario
     if spec.problem == "LP" and len(selection.allocation_alphas) < 2:
@@ -274,7 +274,7 @@ def construct(selection: PaperSelection, output: Path, data_root: Path | None = 
     if destination.exists():
         raise FileExistsError(f"Already constructed: {destination}; select run or a fresh --output")
     rounds = 50 if spec.problem == "LP" else 10
-    base = GECKOConfig.from_yaml(root / "configs/gecko_v1/scenarios" / spec.config_name)
+    base = GECKOConfig.from_yaml(root / "reproduce/configs/gecko_v1/scenarios" / spec.config_name)
     base = replace(base, benchmark_seeds=spec.seeds,
         scenario=replace(base.scenario, save_path=str((data_root or root / "data").resolve())),
         partition=replace(base.partition, num_clients=spec.num_clients),
@@ -386,31 +386,9 @@ def run_commands(selection: PaperSelection, output: Path, device: str) -> list[l
     return commands
 
 
-METHOD_TESTS = {
-    "Bare": ("integration/test_e2e.py",),
-    "GEM": ("scientific/test_gem_method.py",),
-    "EWC": ("scientific/test_method_fidelity_mechanisms.py",),
-    "LwF": ("scientific/test_method_fidelity_mechanisms.py",),
-    "CaT": ("scientific/test_cat_method.py",), "DSLR": ("scientific/test_dslr_method.py",),
-    "SSM": ("scientific/test_ssm_method.py",), "TWP": ("scientific/test_twp_method.py",),
-    "FedGTA": ("scientific/test_fedgta_oracle.py",), "FedPUB": ("integration/test_fedpub_runtime.py",),
-    "FedDC": ("integration/test_feddc_runtime.py",), "POWER": ("scientific/test_power_paper_oracles.py",),
-    "MOTION": ("unit/test_motion_gepae.py", "unit/test_motion_gtmsc.py"),
-    "FedFST": ("integration/test_fedfst.py", "integration/test_fedfst_gat.py"),
-    "GraphKeeper": ("scientific/test_graphkeeper_lp.py",),
-}
-
-
 def test_command(selections: Sequence[PaperSelection]) -> list[str]:
-    """Select retained no-download contracts and mechanism tests, not paper runs."""
-    targets = ["unit/test_paper_benchmark.py", "scientific/test_partition_and_streams.py",
-               "scientific/test_semantics_and_leakage.py"]
-    for selection in selections:
-        if selection.scenario.problem == "LP":
-            targets.append("scientific/test_lp_v2_protocol.py")
-        for method in selection.methods:
-            targets.extend(METHOD_TESTS.get(method, ()))
-    return [sys.executable, "-m", "pytest", "-q", *(f"tests/{name}" for name in dict.fromkeys(targets))]
+    """Verify the minimal distribution and execute its CPU smoke workflow."""
+    return [sys.executable, str(source_root() / "reproduce/check.py"), "--smoke"]
 
 
 def main(argv: Sequence[str] | None = None) -> int:
