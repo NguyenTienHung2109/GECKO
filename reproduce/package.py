@@ -1,4 +1,4 @@
-"""Export code, fixed splits and trained evaluation weights without Git metadata or local outputs."""
+"""Export source, configurations and fixed splits without model weights or local outputs."""
 import argparse
 import hashlib
 from pathlib import Path
@@ -9,6 +9,9 @@ ROOT_FILES = ('README.md', 'LICENSE', 'NOTICE', 'pyproject.toml', '.gitignore', 
 
 
 def files(root):
+    for excluded in ('reproduce/artifacts', 'reproduce/checkpoints', 'reproduce/evaluate.py'):
+        if (root / excluded).exists():
+            raise ValueError(f'Remove pretrained evaluation files before packaging: {excluded}')
     selected = [root / name for name in ROOT_FILES if (root / name).is_file()]
     for name in DIRECTORIES:
         for path in (root / name).rglob('*'):

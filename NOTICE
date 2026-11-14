@@ -13,6 +13,6 @@ See LICENSE for the Apache License, Version 2.0.
 Dataset names, downloaded datasets, split metadata, processed caches, and
 derived graph streams remain subject to their upstream terms. They are not
 relicensed by the code license. This archive includes derived predefined split
-and compact LC/LP graph artifacts under those dataset terms, and explicitly
-identified trained evaluation weights. Raw NC downloads, experiment logs and
-tracking directories are excluded. See README.md for data sources and scope.
+and compact LC/LP graph artifacts under those dataset terms. Model weights,
+raw NC downloads, experiment logs and tracking directories are excluded.
+See README.md for usage and scope.
